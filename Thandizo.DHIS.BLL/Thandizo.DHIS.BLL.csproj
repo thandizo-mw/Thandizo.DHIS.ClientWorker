@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Thandizo.DAL" Version="1.0.1.4" />
+    <PackageReference Include="Thandizo.DataModels" Version="1.0.4.8" />
+  </ItemGroup>
+
+</Project>
