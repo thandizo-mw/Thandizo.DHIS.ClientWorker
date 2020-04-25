@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AngleDimension.Standard.Http.HttpServices;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,16 +13,18 @@ namespace Thandizo.DHIS.BLL.Services
     public class PatientService : IPatientService
     {
         private readonly thandizoContext _context;
+        private readonly string _dhisApiUrl;
 
-        public PatientService(thandizoContext context)
+        public PatientService(thandizoContext context, string dhisApiUrl)
         {
             _context = context;
+            _dhisApiUrl = dhisApiUrl;
         }
 
         public async Task<OutputResponse> PostToDhis(long patientId)
         {
             //get all dhis2 attribute mappings for patient
-            var attributes = await _context.DhisIntegrations.Where(x => x.ModuleCode.Equals("PAT")).ToListAsync();
+            var attributes = await _context.DhisAttributes.Where(x => x.ModuleCode.Equals("PAT")).ToListAsync();
 
             //get patient details
             var patient = await _context.Patients.Where(x => x.PatientId.Equals(patientId))
@@ -40,7 +43,8 @@ namespace Thandizo.DHIS.BLL.Services
                     NextOfKinLastName = x.NextOfKinLastName,
                     NextOfKinPhoneNumber = x.NextOfKinPhoneNumber,
                     CountryName = x.ResidenceCountryCodeNavigation.CountryName,
-                    PatientAge = (int)((x.DateCreated.Subtract(x.DateOfBirth).TotalDays) / 365)
+                    PatientAge = (int)((x.DateCreated.Subtract(x.DateOfBirth).TotalDays) / 365),
+                    DistrictCode = x.DistrictCode
                 }).FirstOrDefaultAsync();
 
             //preapre attributes for DHIS2 integration
@@ -61,29 +65,45 @@ namespace Thandizo.DHIS.BLL.Services
                 }
 
                 //get dhis attribute id
-                var attributeId = attributes.FirstOrDefault(x => x.SourceColumnName.ToLower().Equals(prop.Name.ToLower()))
-                    .DhisAttributeId;
+                var attribute = attributes.FirstOrDefault(x => x.SourceColumnName.ToLower().Equals(prop.Name.ToLower()));
 
-                attributeItems.Add(new DhisTrackedEntityAttribute
+                if (attribute != null)
                 {
-                    Attribute = attributeId,
-                    Value = propertyValue
-                });
+                    attributeItems.Add(new DhisTrackedEntityAttribute
+                    {
+                        Attribute = attribute.DhisAttributeId,
+                        Value = propertyValue
+                    });
+                }
             }
             //************* END ***********************************************
+
+            //get programme details
+            var programme = await _context.DhisProgrammes.FirstOrDefaultAsync();
+
+            //get organisation unit (facility)
+            var organisationUnit = await _context.DhisOrganisationUnits
+                .FirstOrDefaultAsync(x => x.DistrictCode.Equals(patient.DistrictCode));
 
             var trackedEntity = new DhisTrackedEntity()
             {
                 Attributes = attributeItems,
-                OrgUnit = "SomeId",
-                TrackedEntity = "SomeId"
+                OrgUnit = organisationUnit.DhisOrgUnitId,
+                TrackedEntity = programme.DhisProgrammeId
             };
+
+            //post to dhis
+            var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances", trackedEntity);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ArgumentException("Failed to submit patient data to DHIS2");
+            }
 
             return new OutputResponse
             {
                 IsErrorOccured = false,
-                Message = "Posted to DHIS2 successfully",
-                Result = trackedEntity
+                Message = "Posted to DHIS2 successfully"
             };
         }
     }
