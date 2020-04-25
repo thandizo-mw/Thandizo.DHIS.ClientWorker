@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Thandizo.DAL" Version="1.0.1.4" />
-    <PackageReference Include="Thandizo.DataModels" Version="1.0.4.8" />
+    <PackageReference Include="Thandizo.DataModels" Version="1.0.4.9" />
   </ItemGroup>
 
 </Project>
