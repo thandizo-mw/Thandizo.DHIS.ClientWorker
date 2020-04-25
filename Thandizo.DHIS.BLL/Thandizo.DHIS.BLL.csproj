@@ -5,8 +5,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Thandizo.DAL" Version="1.0.1.4" />
-    <PackageReference Include="Thandizo.DataModels" Version="1.0.4.9" />
+    <PackageReference Include="AngleDimension.Standard.Http" Version="1.1.6.4" />
+    <PackageReference Include="Thandizo.DAL" Version="1.0.1.5" />
+    <PackageReference Include="Thandizo.DataModels" Version="1.0.5" />
   </ItemGroup>
 
 </Project>
