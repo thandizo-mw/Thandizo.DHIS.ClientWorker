@@ -9,7 +9,7 @@ using Thandizo.DataModels.Integrations;
 
 namespace Thandizo.DHIS.BLL.Services
 {
-    public class PatientService
+    public class PatientService : IPatientService
     {
         private readonly thandizoContext _context;
 
@@ -70,10 +70,18 @@ namespace Thandizo.DHIS.BLL.Services
             }
             //************* END ***********************************************
 
+            var trackedEntity = new DhisTrackedEntity()
+            {
+                Attributes = attributeItems,
+                OrgUnit = "SomeId",
+                TrackedEntity = "SomeId"
+            };
+
             return new OutputResponse
             {
                 IsErrorOccured = false,
-                Message = "Posted to DHIS2 successfully"
+                Message = "Posted to DHIS2 successfully",
+                Result = trackedEntity
             };
         }
     }
