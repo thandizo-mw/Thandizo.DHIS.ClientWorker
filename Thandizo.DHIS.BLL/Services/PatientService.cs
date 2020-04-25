@@ -29,7 +29,7 @@ namespace Thandizo.DHIS.BLL.Services
                 {
                     DateofBirth = x.DateOfBirth,
                     FirstName = x.FirstName,
-                    Gender = x.Gender,
+                    Gender = x.Gender.Equals("F") ? "Female" : "Male",
                     HomeAddress = x.HomeAddress,
                     NationalId = x.IdentificationType.ExternalReferenceNumber.Equals("NID") ? x.IdentificationNumber : "",
                     OtherIdentificationNumber = x.IdentificationType.ExternalReferenceNumber.Equals("OIT") ? x.IdentificationNumber : "",
@@ -39,7 +39,8 @@ namespace Thandizo.DHIS.BLL.Services
                     NextOfKinFirstName = x.NextOfKinFirstName,
                     NextOfKinLastName = x.NextOfKinLastName,
                     NextOfKinPhoneNumber = x.NextOfKinPhoneNumber,
-                    CountryName = x.ResidenceCountryCodeNavigation.CountryName
+                    CountryName = x.ResidenceCountryCodeNavigation.CountryName,
+                    PatientAge = (int)((x.DateCreated.Subtract(x.DateOfBirth).TotalDays) / 365)
                 }).FirstOrDefaultAsync();
 
             //preapre attributes for DHIS2 integration
@@ -60,7 +61,8 @@ namespace Thandizo.DHIS.BLL.Services
                 }
 
                 //get dhis attribute id
-                var attributeId = attributes.FirstOrDefault(x => x.SourceColumnName.Equals(prop.Name)).DhisAttributeId;
+                var attributeId = attributes.FirstOrDefault(x => x.SourceColumnName.ToLower().Equals(prop.Name.ToLower()))
+                    .DhisAttributeId;
 
                 attributeItems.Add(new DhisTrackedEntityAttribute
                 {
