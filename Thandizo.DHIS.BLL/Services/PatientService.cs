@@ -1,8 +1,10 @@
 ﻿using AngleDimension.Standard.Http.HttpServices;
 using Microsoft.EntityFrameworkCore;
+using NETCore.Encrypt;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Thandizo.DAL.Models;
 using Thandizo.DataModels.General;
@@ -97,19 +99,33 @@ namespace Thandizo.DHIS.BLL.Services
                 TrackedEntity = programme.DhisProgrammeId
             };
 
-            //post to dhis
+            //post to DHIS2 through OpenHIM gateway
             //***************************************
+            //authenticate the user with OpenHIM and get salt key
+            var response = await HttpRequestFactory.Get($"{_dhisApiUrl}/authenticate/{_clientUserId}");
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                throw new ArgumentException("Failed to authenticate the username with OpenHIM");
+            }
+
+            var authenticatedUser = response.ContentAsType<AuthenticatedUserReponse>();
+
+            //regenerate keys with SHA512 hashing
+            var dateNow = DateTime.UtcNow.AddHours(2).ToString("o");
+            var passwordHash = EncryptProvider.Sha512($"{ authenticatedUser.Salt }{ _clientPassword }");
+            var token = EncryptProvider.Sha512($"{ passwordHash }{ authenticatedUser.Salt }{ dateNow }");
+
+            //build header fields to be aprt of the request
             var headerFields = new List<HttpCustomHeaderField>
             {
-                new HttpCustomHeaderField
-                {
-                    HeaderName = "Authorization",
-                    HeaderValue = $"Basic {_clientUserId}:{_clientPassword}"
-                }
+                new HttpCustomHeaderField { HeaderName = "auth-username", HeaderValue = _clientUserId },
+                new HttpCustomHeaderField { HeaderName = "auth-ts", HeaderValue = dateNow },
+                new HttpCustomHeaderField { HeaderName = "auth-salt", HeaderValue = authenticatedUser.Salt },
+                new HttpCustomHeaderField { HeaderName = "auth-token", HeaderValue = token }
             };
 
-            var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances",
-                trackedEntity, headerFields);
+            response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances",
+               trackedEntity, headerFields);
 
             if (!response.IsSuccessStatusCode)
             {
