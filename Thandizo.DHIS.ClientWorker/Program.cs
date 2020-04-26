@@ -35,10 +35,12 @@ namespace Thandizo.DHIS.ClientWorker
 
             var connectionString = _configuration.GetConnectionString("DatabaseConnection");
             var dhisApiUrl = _configuration["DhisApiUrl"];
+            var dhisClientUserId = _configuration["DhisClientUserId"];
+            var dhisClientPassword = _configuration["DhisClientPassword"];
 
             var builder = new ContainerBuilder();
             builder.RegisterModule(new DBModule(connectionString));
-            builder.RegisterModule(new ServiceModule(dhisApiUrl));
+            builder.RegisterModule(new ServiceModule(dhisApiUrl, dhisClientUserId, dhisClientPassword));
             builder.RegisterModule<ConsumersModule>();
             builder.Register(context =>
             {

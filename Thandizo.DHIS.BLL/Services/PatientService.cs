@@ -14,11 +14,16 @@ namespace Thandizo.DHIS.BLL.Services
     {
         private readonly thandizoContext _context;
         private readonly string _dhisApiUrl;
+        private readonly string _clientUserId;
+        private readonly string _clientPassword;
 
-        public PatientService(thandizoContext context, string dhisApiUrl)
+        public PatientService(thandizoContext context, string dhisApiUrl,
+            string clientUserId, string clientPassword)
         {
             _context = context;
             _dhisApiUrl = dhisApiUrl;
+            _clientPassword = clientPassword;
+            _clientUserId = clientUserId;
         }
 
         public async Task<OutputResponse> PostToDhis(long patientId)
@@ -93,12 +98,24 @@ namespace Thandizo.DHIS.BLL.Services
             };
 
             //post to dhis
-            var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances", trackedEntity);
+            //***************************************
+            var headerFields = new List<HttpCustomHeaderField>
+            {
+                new HttpCustomHeaderField
+                {
+                    HeaderName = "Authorization",
+                    HeaderValue = $"Basic {_clientUserId}:{_clientPassword}"
+                }
+            };
+
+            var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances",
+                trackedEntity, headerFields);
 
             if (!response.IsSuccessStatusCode)
             {
                 throw new ArgumentException("Failed to submit patient data to DHIS2");
             }
+            //****************************************
 
             return new OutputResponse
             {
