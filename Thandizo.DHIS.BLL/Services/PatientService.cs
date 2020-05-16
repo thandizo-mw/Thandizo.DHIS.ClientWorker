@@ -1,10 +1,10 @@
 ﻿using AngleDimension.Standard.Http.HttpServices;
 using Microsoft.EntityFrameworkCore;
-using NETCore.Encrypt;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 using Thandizo.DAL.Models;
 using Thandizo.DataModels.General;
@@ -33,16 +33,16 @@ namespace Thandizo.DHIS.BLL.Services
             //get all dhis2 attribute mappings for patient
             var attributes = await _context.DhisAttributes.Where(x => x.ModuleCode.Equals("PAT")).ToListAsync();
 
-            //get patient details
+            //1. GET PATIENT DETAILS
+            //************* START ************************************************
             var patient = await _context.Patients.Where(x => x.PatientId.Equals(patientId))
                 .Select(x => new DhisPatientIntegrationDTO
                 {
-                    DateofBirth = x.DateOfBirth,
+                    DateofBirth = x.DateOfBirth.Date,
                     FirstName = x.FirstName,
                     Gender = x.Gender.Equals("F") ? "Female" : "Male",
                     HomeAddress = x.HomeAddress,
                     NationalId = x.IdentificationType.ExternalReferenceNumber.Equals("NID") ? x.IdentificationNumber : "",
-                    OtherIdentificationNumber = x.IdentificationType.ExternalReferenceNumber.Equals("OIT") ? x.IdentificationNumber : "",
                     PassportNumber = x.IdentificationType.ExternalReferenceNumber.Equals("PST") ? x.IdentificationNumber : "",
                     LastName = x.LastName,
                     NationalityName = x.NationalityCodeNavigation.NationalityName,
@@ -50,12 +50,14 @@ namespace Thandizo.DHIS.BLL.Services
                     NextOfKinLastName = x.NextOfKinLastName,
                     NextOfKinPhoneNumber = x.NextOfKinPhoneNumber,
                     CountryName = x.ResidenceCountryCodeNavigation.CountryName,
-                    PatientAge = (int)((x.DateCreated.Subtract(x.DateOfBirth).TotalDays) / 365),
+                    PatientAge = (int)((x.DateCreated.Subtract(x.DateOfBirth.Date).TotalDays) / 365),
+                    DistrictName = x.DistrictCodeNavigation.DistrictName,
+                    PhoneNumber = x.PhoneNumber,
+                    PhysicalAddress = x.PhysicalAddress,
                     DistrictCode = x.DistrictCode
                 }).FirstOrDefaultAsync();
 
-            //preapre attributes for DHIS2 integration
-            //************* START ************************************************
+            //prepare attributes for DHIS2 integration            
             var attributeItems = new List<DhisTrackedEntityAttribute>();
 
             foreach (var prop in patient.GetType().GetProperties())
@@ -85,6 +87,16 @@ namespace Thandizo.DHIS.BLL.Services
             }
             //************* END ***********************************************
 
+            //2. GET SYMPTOMS FOR THE PATIENT : these are represented as data elements
+            //************* START ************************************************
+            var symptoms = _context.PatientDailyStatuses.Where(x => x.PatientId == patientId)
+                    .Select(x => new DhisDataValue
+                    {
+                        Value = "1",
+                        DataElement = x.Symptom.ExternalReferenceNumber
+                    });
+            //************* END ***********************************************
+
             //get programme details
             var programme = await _context.DhisProgrammes.FirstOrDefaultAsync();
 
@@ -92,39 +104,56 @@ namespace Thandizo.DHIS.BLL.Services
             var organisationUnit = await _context.DhisOrganisationUnits
                 .FirstOrDefaultAsync(x => x.DistrictCode.Equals(patient.DistrictCode));
 
+            //adding enrollments
+            var enrollments = new List<DhisEnrollment>(){
+                new DhisEnrollment
+                {
+                     EnrollmentDate = DateTime.UtcNow.AddHours(2).Date,
+                     IncidentDate = DateTime.UtcNow.AddHours(2).Date,
+                     OrgUnit = organisationUnit.DhisOrgUnitId,
+                     Program = programme.DhisProgrammeId,
+                     Events = new List<DhisEvent>()
+                     {
+                         new DhisEvent
+                         {
+                             DataValues = symptoms,
+                             EventDate = DateTime.UtcNow.AddHours(2).Date,
+                             OrgUnit = organisationUnit.DhisOrgUnitId,
+                             Program = programme.DhisProgrammeId,
+                             ProgramStage = programme.DhisProgramStage,
+                             Status = "COMPLETED",
+                             StoredBy = _clientUserId
+                         }
+                     }
+                }
+            };
+
             var trackedEntity = new DhisTrackedEntity()
             {
                 Attributes = attributeItems,
                 OrgUnit = organisationUnit.DhisOrgUnitId,
-                TrackedEntity = programme.DhisProgrammeId
+                TrackedEntity = programme.DhisTrackedEntityId,
+                Enrollments = enrollments
             };
 
-            //post to DHIS2 through OpenHIM gateway
+            //remove this code
+            var json = JsonConvert.SerializeObject(trackedEntity);
+
+            //post to dhis through basic authentication
             //***************************************
-            //authenticate the user with OpenHIM and get salt key
-            var response = await HttpRequestFactory.Get($"{_dhisApiUrl}/authenticate/{_clientUserId}");
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                throw new ArgumentException("Failed to authenticate the username with OpenHIM");
-            }
+            byte[] credentialsBytes = Encoding.UTF8.GetBytes($"{_clientUserId}:{_clientPassword}");
+            var credentials = Convert.ToBase64String(credentialsBytes);
 
-            var authenticatedUser = response.ContentAsType<AuthenticatedUserReponse>();
-
-            //regenerate keys with SHA512 hashing
-            var dateNow = DateTime.UtcNow.AddHours(2).ToString("o");
-            var passwordHash = EncryptProvider.Sha512($"{ authenticatedUser.Salt }{ _clientPassword }");
-            var token = EncryptProvider.Sha512($"{ passwordHash }{ authenticatedUser.Salt }{ dateNow }");
-
-            //build header fields to be aprt of the request
             var headerFields = new List<HttpCustomHeaderField>
             {
-                new HttpCustomHeaderField { HeaderName = "auth-username", HeaderValue = _clientUserId },
-                new HttpCustomHeaderField { HeaderName = "auth-ts", HeaderValue = dateNow },
-                new HttpCustomHeaderField { HeaderName = "auth-salt", HeaderValue = authenticatedUser.Salt },
-                new HttpCustomHeaderField { HeaderName = "auth-token", HeaderValue = token }
+                new HttpCustomHeaderField
+                {
+                    HeaderName = "Authorization",
+                    HeaderValue = $"Basic { credentials }"
+                }
             };
 
-            response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances",
+            var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances",
                trackedEntity, headerFields);
 
             if (!response.IsSuccessStatusCode)
