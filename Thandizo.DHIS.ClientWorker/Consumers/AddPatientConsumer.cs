@@ -5,11 +5,11 @@ using Thandizo.DHIS.BLL.Services;
 
 namespace Thandizo.DHIS.ClientWorker.Consumers
 {
-    public class AddPatientToDhisConsumer: IConsumer<IDhisPatientModelRequest>
+    public class AddPatientConsumer: IConsumer<IDhisPatientModelRequest>
     {
         private readonly IPatientService _service;
 
-        public AddPatientToDhisConsumer(IPatientService service)
+        public AddPatientConsumer(IPatientService service)
         {
             _service = service;
         }
@@ -17,7 +17,7 @@ namespace Thandizo.DHIS.ClientWorker.Consumers
         public async Task Consume(ConsumeContext<IDhisPatientModelRequest> context)
         {
             var request = context.Message;
-            var response = await _service.PostToDhis(request.PatientId);
+            var response = await _service.Post(request.PatientId);
             await context.RespondAsync(response);
         }
     }
