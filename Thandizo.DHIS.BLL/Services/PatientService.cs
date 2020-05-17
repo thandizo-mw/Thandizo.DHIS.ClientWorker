@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Thandizo.DAL.Models;
 using Thandizo.DataModels.General;
 using Thandizo.DataModels.Integrations;
+using Thandizo.DataModels.Integrations.Responses;
 
 namespace Thandizo.DHIS.BLL.Services
 {
@@ -156,11 +157,25 @@ namespace Thandizo.DHIS.BLL.Services
             var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances",
                trackedEntity, headerFields);
 
-            if (!response.IsSuccessStatusCode)
+            //handle response from DHIS2 api
+            var dhisResponse = response.ContentAsType<DhisResponse>();
+
+            if (dhisResponse.HttpStatus.Equals("OK"))
             {
-                throw new ArgumentException("Failed to submit patient data to DHIS2");
+                //update patient details
+                var patientToUpdate = await _context.Patients.FirstOrDefaultAsync(x => x.PatientId.Equals(patientId));
+                patientToUpdate.ExternalReferenceNumber = dhisResponse.Response.ImportSummaries.FirstOrDefault().Reference;
+                await _context.SaveChangesAsync();
             }
-            //****************************************
+            else
+            {
+                var messages = string.Empty;
+                foreach (var importSummary in dhisResponse.Response.ImportSummaries)
+                {
+                    messages = string.Join(", ", importSummary.Conflicts.Select(x => x.Value).ToArray());
+                }
+                throw new ArgumentException(messages);
+            }
 
             return new OutputResponse
             {
