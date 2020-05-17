@@ -5,6 +5,6 @@ namespace Thandizo.DHIS.BLL.Services
 {
     public interface IPatientService
     {
-        Task<OutputResponse> PostToDhis(long patientId);
+        Task<OutputResponse> Post(long patientId);
     }
 }

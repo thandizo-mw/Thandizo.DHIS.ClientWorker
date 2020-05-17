@@ -29,7 +29,7 @@ namespace Thandizo.DHIS.BLL.Services
             _clientUserId = clientUserId;
         }
 
-        public async Task<OutputResponse> PostToDhis(long patientId)
+        public async Task<OutputResponse> Post(long patientId)
         {
             //get all dhis2 attribute mappings for patient
             var attributes = await _context.DhisAttributes.Where(x => x.ModuleCode.Equals("PAT")).ToListAsync();
@@ -77,7 +77,7 @@ namespace Thandizo.DHIS.BLL.Services
                 //get dhis attribute id
                 var attribute = attributes.FirstOrDefault(x => x.SourceColumnName.ToLower().Equals(prop.Name.ToLower()));
 
-                if (attribute != null)
+                if (attribute != null && !string.IsNullOrEmpty(propertyValue))
                 {
                     attributeItems.Add(new DhisTrackedEntityAttribute
                     {
@@ -138,7 +138,7 @@ namespace Thandizo.DHIS.BLL.Services
             };
 
             //remove this code
-            var json = JsonConvert.SerializeObject(trackedEntity);
+            //var json = JsonConvert.SerializeObject(trackedEntity);
 
             //post to dhis through basic authentication
             //***************************************
