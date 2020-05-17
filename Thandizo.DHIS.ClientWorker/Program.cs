@@ -60,10 +60,18 @@ namespace Thandizo.DHIS.ClientWorker
 
                     config.PrefetchCount = 32;
                     config.UseRetry(retry => retry.Interval(3, TimeSpan.FromSeconds(6)));
+
+                    #region queue endpoints
+                    config.ReceiveEndpoint(_configuration["DhisDailySymptomsQueue"], e =>
+                    {
+                        e.Consumer<AddPatientDailyStatusConsumer>(context);
+                    });
+
                     config.ReceiveEndpoint(_configuration["DhisQueue"], e =>
                     {
-                        e.Consumer<AddPatientToDhisConsumer>(context);
+                        e.Consumer<AddPatientConsumer>(context);
                     });
+                    #endregion
                 });
                 return busControl;
             })
