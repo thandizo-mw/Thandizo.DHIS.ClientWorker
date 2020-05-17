@@ -23,6 +23,12 @@ namespace Thandizo.DHIS.ClientWorker.Modules
                 .WithParameter("dhisApiUrl", _dhisApiUrl)
                 .WithParameter("clientUserId", _dhisClientUserId)
                 .WithParameter("clientPassword", _dhisClientPassword);
+
+            builder.RegisterType<PatientDailyStatusService>()
+                .As<IPatientDailyStatusService>()
+                .WithParameter("dhisApiUrl", _dhisApiUrl)
+                .WithParameter("clientUserId", _dhisClientUserId)
+                .WithParameter("clientPassword", _dhisClientPassword);
         }
     }
 }

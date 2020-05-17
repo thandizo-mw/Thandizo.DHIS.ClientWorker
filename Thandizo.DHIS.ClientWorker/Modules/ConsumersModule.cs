@@ -7,7 +7,8 @@ namespace Thandizo.DHIS.ClientWorker.Modules
     {
         protected override void Load(ContainerBuilder builder)
         {
-            builder.RegisterType<AddPatientToDhisConsumer>();
+            builder.RegisterType<AddPatientConsumer>();
+            builder.RegisterType<AddPatientDailyStatusConsumer>();
         }
     }
 }
