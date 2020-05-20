@@ -1,6 +1,5 @@
 ﻿using AngleDimension.Standard.Http.HttpServices;
 using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,22 +40,33 @@ namespace Thandizo.DHIS.BLL.Services
                 {
                     DateofBirth = x.DateOfBirth.Date,
                     FirstName = x.FirstName,
-                    Gender = x.Gender.Equals("F") ? "Female" : "Male",
+                    Gender = x.Gender.Equals("F") ? "female" : "male",
                     HomeAddress = x.HomeAddress,
                     NationalId = x.IdentificationType.ExternalReferenceNumber.Equals("NID") ? x.IdentificationNumber : "",
                     PassportNumber = x.IdentificationType.ExternalReferenceNumber.Equals("PST") ? x.IdentificationNumber : "",
                     LastName = x.LastName,
-                    NationalityName = x.NationalityCodeNavigation.NationalityName,
+                    NationalityName = x.NationalityCodeNavigation.ExternalReferenceNumber,
                     NextOfKinFirstName = x.NextOfKinFirstName,
                     NextOfKinLastName = x.NextOfKinLastName,
                     NextOfKinPhoneNumber = x.NextOfKinPhoneNumber,
-                    CountryName = x.ResidenceCountryCodeNavigation.CountryName,
+                    CountryName = x.ResidenceCountryCodeNavigation.ExternalReferenceNumber,
                     PatientAge = (int)((x.DateCreated.Subtract(x.DateOfBirth.Date).TotalDays) / 365),
                     DistrictName = x.DistrictCodeNavigation.DistrictName,
                     PhoneNumber = x.PhoneNumber,
                     PhysicalAddress = x.PhysicalAddress,
-                    DistrictCode = x.DistrictCode
+                    DistrictCode = x.DistrictCode,
+                    ExternalReferenceNumber = x.ExternalReferenceNumber
                 }).FirstOrDefaultAsync();
+
+            //this avoid duplicated entries to DHIS2
+            if (!string.IsNullOrEmpty(patient.ExternalReferenceNumber))
+            {
+                return new OutputResponse
+                {
+                    IsErrorOccured = false,
+                    Message = "Already posted to DHIS2"
+                };
+            }
 
             //prepare attributes for DHIS2 integration            
             var attributeItems = new List<DhisTrackedEntityAttribute>();
@@ -93,13 +103,13 @@ namespace Thandizo.DHIS.BLL.Services
             var symptoms = _context.PatientDailyStatuses.Where(x => x.PatientId == patientId)
                     .Select(x => new DhisDataValue
                     {
-                        Value = "1",
+                        Value = "Yes",
                         DataElement = x.Symptom.ExternalReferenceNumber
                     });
             //************* END ***********************************************
 
-            //get programme details
-            var programme = await _context.DhisProgrammes.FirstOrDefaultAsync();
+            //get program details
+            var program = await _context.DhisPrograms.FirstOrDefaultAsync();
 
             //get organisation unit (facility)
             var organisationUnit = await _context.DhisOrganisationUnits
@@ -112,7 +122,7 @@ namespace Thandizo.DHIS.BLL.Services
                      EnrollmentDate = DateTime.UtcNow.AddHours(2).Date,
                      IncidentDate = DateTime.UtcNow.AddHours(2).Date,
                      OrgUnit = organisationUnit.DhisOrgUnitId,
-                     Program = programme.DhisProgrammeId,
+                     Program = program.DhisProgramId,
                      Events = new List<DhisEvent>()
                      {
                          new DhisEvent
@@ -120,8 +130,8 @@ namespace Thandizo.DHIS.BLL.Services
                              DataValues = symptoms,
                              EventDate = DateTime.UtcNow.AddHours(2).Date,
                              OrgUnit = organisationUnit.DhisOrgUnitId,
-                             Program = programme.DhisProgrammeId,
-                             ProgramStage = programme.DhisProgramStage,
+                             Program = program.DhisProgramId,
+                             ProgramStage = program.DhisProgramStage,
                              Status = "COMPLETED",
                              StoredBy = _clientUserId
                          }
@@ -133,12 +143,9 @@ namespace Thandizo.DHIS.BLL.Services
             {
                 Attributes = attributeItems,
                 OrgUnit = organisationUnit.DhisOrgUnitId,
-                TrackedEntity = programme.DhisTrackedEntityId,
+                TrackedEntityType = program.DhisTrackedEntityId,
                 Enrollments = enrollments
             };
-
-            //remove this code
-            //var json = JsonConvert.SerializeObject(trackedEntity);
 
             //post to dhis through basic authentication
             //***************************************
@@ -172,7 +179,7 @@ namespace Thandizo.DHIS.BLL.Services
                 var messages = string.Empty;
                 foreach (var importSummary in dhisResponse.Response.ImportSummaries)
                 {
-                    messages = string.Join(", ", importSummary.Conflicts.Select(x => x.Value).ToArray());
+                    messages = string.Join("; ", importSummary.Conflicts.Select(x => x.Value).ToArray());
                 }
                 throw new ArgumentException(messages);
             }
