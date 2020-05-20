@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29806.167
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Thandizo.DHIS.ClientWorker", "Thandizo.DHIS.ClientWorker\Thandizo.DHIS.ClientWorker.csproj", "{25988126-1A83-43BB-9F7D-D6B3D01529D3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Thandizo.DHIS.ClientWorker", "Thandizo.DHIS.ClientWorker\Thandizo.DHIS.ClientWorker.csproj", "{25988126-1A83-43BB-9F7D-D6B3D01529D3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Thandizo.DHIS.BLL", "Thandizo.DHIS.BLL\Thandizo.DHIS.BLL.csproj", "{B27D91F3-83B1-4F7D-AC9B-C326B979A5F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Thandizo.DHIS.BLL", "Thandizo.DHIS.BLL\Thandizo.DHIS.BLL.csproj", "{B27D91F3-83B1-4F7D-AC9B-C326B979A5F6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
