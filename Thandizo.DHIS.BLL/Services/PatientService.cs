@@ -10,23 +10,19 @@ using Thandizo.DAL.Models;
 using Thandizo.DataModels.General;
 using Thandizo.DataModels.Integrations;
 using Thandizo.DataModels.Integrations.Responses;
+using Thandizo.DHIS.BLL.Models;
 
 namespace Thandizo.DHIS.BLL.Services
 {
     public class PatientService : IPatientService
     {
         private readonly thandizoContext _context;
-        private readonly string _dhisApiUrl;
-        private readonly string _clientUserId;
-        private readonly string _clientPassword;
+        private readonly DhisConfiguration _dhisConfiguration;
 
-        public PatientService(thandizoContext context, string dhisApiUrl,
-            string clientUserId, string clientPassword)
+        public PatientService(thandizoContext context, DhisConfiguration dhisConfiguration)
         {
             _context = context;
-            _dhisApiUrl = dhisApiUrl;
-            _clientPassword = clientPassword;
-            _clientUserId = clientUserId;
+            _dhisConfiguration = dhisConfiguration;
         }
 
         public async Task<OutputResponse> Post(long patientId)
@@ -137,7 +133,7 @@ namespace Thandizo.DHIS.BLL.Services
                              Program = program.DhisProgramId,
                              ProgramStage = program.DhisProgramStage,
                              Status = "COMPLETED",
-                             StoredBy = _clientUserId
+                             StoredBy = _dhisConfiguration.DhisClientUserId
                          }
                      }
                 }
@@ -153,7 +149,7 @@ namespace Thandizo.DHIS.BLL.Services
 
                 //post to dhis through basic authentication
                 //***************************************
-                byte[] credentialsBytes = Encoding.UTF8.GetBytes($"{_clientUserId}:{_clientPassword}");
+                byte[] credentialsBytes = Encoding.UTF8.GetBytes($"{_dhisConfiguration.DhisClientUserId}:{_dhisConfiguration.DhisClientPassword}");
                 var credentials = Convert.ToBase64String(credentialsBytes);
 
                 var headerFields = new List<HttpCustomHeaderField>
@@ -165,7 +161,7 @@ namespace Thandizo.DHIS.BLL.Services
                 }
             };
 
-                var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/trackedEntityInstances",
+                var response = await HttpRequestFactory.Post($"{_dhisConfiguration.DhisApiUrl}/trackedEntityInstances",
                    trackedEntity, headerFields);
 
                 //handle response from DHIS2 api

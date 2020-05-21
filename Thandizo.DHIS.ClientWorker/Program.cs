@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.IO;
+using Thandizo.DHIS.BLL.Models;
 using Thandizo.DHIS.ClientWorker.Consumers;
 using Thandizo.DHIS.ClientWorker.Modules;
 
@@ -34,13 +35,16 @@ namespace Thandizo.DHIS.ClientWorker
             LogContext.ConfigureCurrentLogContext(loggerFactory);
 
             var connectionString = _configuration.GetConnectionString("DatabaseConnection");
-            var dhisApiUrl = _configuration["DhisApiUrl"];
-            var dhisClientUserId = _configuration["DhisClientUserId"];
-            var dhisClientPassword = _configuration["DhisClientPassword"];
+            var dhisConfiguration = new DhisConfiguration
+            {
+                DhisApiUrl = _configuration["DhisApiUrl"],
+                DhisClientUserId = _configuration["DhisClientUserId"],
+                DhisClientPassword = _configuration["DhisClientPassword"]
+            };
 
             var builder = new ContainerBuilder();
             builder.RegisterModule(new DBModule(connectionString));
-            builder.RegisterModule(new ServiceModule(dhisApiUrl, dhisClientUserId, dhisClientPassword));
+            builder.RegisterModule(new ServiceModule(dhisConfiguration));
             builder.RegisterModule<ConsumersModule>();
             builder.Register(context =>
             {

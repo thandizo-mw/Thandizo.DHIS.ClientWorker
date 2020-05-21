@@ -10,29 +10,25 @@ using Thandizo.DataModels.General;
 using Thandizo.DataModels.Integrations;
 using Thandizo.DataModels.Integrations.Responses;
 using Thandizo.DataModels.Patients;
+using Thandizo.DHIS.BLL.Models;
 
 namespace Thandizo.DHIS.BLL.Services
 {
     public class PatientDailyStatusService : IPatientDailyStatusService
     {
         private readonly thandizoContext _context;
-        private readonly string _dhisApiUrl;
-        private readonly string _clientUserId;
-        private readonly string _clientPassword;
+        private readonly DhisConfiguration _dhisConfiguration;
 
-        public PatientDailyStatusService(thandizoContext context, string dhisApiUrl,
-            string clientUserId, string clientPassword)
+        public PatientDailyStatusService(thandizoContext context, DhisConfiguration dhisConfiguration)
         {
             _context = context;
-            _dhisApiUrl = dhisApiUrl;
-            _clientPassword = clientPassword;
-            _clientUserId = clientUserId;
+            _dhisConfiguration = dhisConfiguration;
         }
 
         public async Task<OutputResponse> Post(IEnumerable<PatientDailyStatusDTO> statuses)
         {
             var patientId = statuses.FirstOrDefault().PatientId;
-            var patient = await _context.Patients.FirstOrDefaultAsync(x => x.PatientId.Equals(patientId));            
+            var patient = await _context.Patients.FirstOrDefaultAsync(x => x.PatientId.Equals(patientId));
 
             //symptoms as data elements
             var symptoms = from ds in statuses
@@ -64,7 +60,7 @@ namespace Thandizo.DHIS.BLL.Services
 
             //post to dhis through basic authentication
             //***************************************
-            byte[] credentialsBytes = Encoding.UTF8.GetBytes($"{_clientUserId}:{_clientPassword}");
+            byte[] credentialsBytes = Encoding.UTF8.GetBytes($"{_dhisConfiguration.DhisClientUserId}:{_dhisConfiguration.DhisClientPassword}");
             var credentials = Convert.ToBase64String(credentialsBytes);
 
             var headerFields = new List<HttpCustomHeaderField>
@@ -76,12 +72,16 @@ namespace Thandizo.DHIS.BLL.Services
                 }
             };
 
-            var response = await HttpRequestFactory.Post($"{_dhisApiUrl}/events", trackedEntityInstance, headerFields);
+            var response = await HttpRequestFactory.Post($"{_dhisConfiguration.DhisApiUrl}/events", trackedEntityInstance, headerFields);
 
             //handle response from DHIS2 api
             var dhisResponse = response.ContentAsType<DhisResponse>();
 
-            if (!dhisResponse.HttpStatus.Equals("OK"))
+            if (dhisResponse.HttpStatus.Equals("OK"))
+            {
+
+            }
+            else
             {
                 var messages = string.Empty;
                 foreach (var importSummary in dhisResponse.Response.ImportSummaries)

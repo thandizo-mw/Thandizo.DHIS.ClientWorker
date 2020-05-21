@@ -1,34 +1,27 @@
 ﻿using Autofac;
+using Thandizo.DHIS.BLL.Models;
 using Thandizo.DHIS.BLL.Services;
 
 namespace Thandizo.DHIS.ClientWorker.Modules
 {
     public class ServiceModule : Module
     {
-        private readonly string _dhisApiUrl;
-        private readonly string _dhisClientUserId;
-        private readonly string _dhisClientPassword;
+        private readonly DhisConfiguration _dhisConfiguration;
 
-        public ServiceModule(string dhisApiUrl, string dhisClientUserId, string dhisClientPassword)
+        public ServiceModule(DhisConfiguration dhisConfiguration)
         {
-            _dhisApiUrl = dhisApiUrl;
-            _dhisClientPassword = dhisClientPassword;
-            _dhisClientUserId = dhisClientUserId;
+            _dhisConfiguration = dhisConfiguration;
         }
 
         protected override void Load(ContainerBuilder builder)
         {
             builder.RegisterType<PatientService>()
                 .As<IPatientService>()
-                .WithParameter("dhisApiUrl", _dhisApiUrl)
-                .WithParameter("clientUserId", _dhisClientUserId)
-                .WithParameter("clientPassword", _dhisClientPassword);
+                .WithParameter("dhisConfiguration", _dhisConfiguration);
 
             builder.RegisterType<PatientDailyStatusService>()
                 .As<IPatientDailyStatusService>()
-                .WithParameter("dhisApiUrl", _dhisApiUrl)
-                .WithParameter("clientUserId", _dhisClientUserId)
-                .WithParameter("clientPassword", _dhisClientPassword);
+                .WithParameter("dhisConfiguration", _dhisConfiguration);
         }
     }
 }
